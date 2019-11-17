@@ -1,0 +1,51 @@
+---
+
+version: '3.3'
+services:
+  db:
+    image: mysql:5.7
+    volumes:
+      - ./db-dump:/docker-entrypoint-initdb.d
+      - db_data:/var/lib/mysql
+    restart: always
+    env_file:
+      - .env
+  nginx-proxy:
+    image: jwilder/nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
+    volumes:
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhostd:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+  letsencrypt-nginx-proxy-companion:
+    image: jrcs/letsencrypt-nginx-proxy-companion
+    container_name: letsencrypt-nginx-proxy-companion
+    environment:
+      - NGINX_PROXY_CONTAINER=nginx-proxy
+    volumes:
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - vhostd:/etc/nginx/vhost.d
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+  wordpress:
+    depends_on:
+      - db
+    image: wordpress:latest
+    restart: always
+    env_file:
+      - .env
+    environment:
+      WORDPRESS_DB_HOST: db:3306
+    volumes:
+      - ./wordpress:/var/www/html/wp-content
+volumes:
+  certs: {}
+  db_data: {}
+  html: {}
+  vhostd: {}
